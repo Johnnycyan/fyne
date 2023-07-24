@@ -223,10 +223,10 @@ func (p *ProgressBar) CreateRenderer() fyne.WidgetRenderer {
 	//background.Angle = 45
 	background := canvas.NewRectangle(theme.DisabledButtonColor())
 	background.CornerRadius = theme.InputRadiusSize()
-	bar := canvas.NewVerticalGradient(theme.PrimaryColor(), &color.NRGBA{R: uint8(200), G: uint8(0), B: uint8(200), A: uint8(255)})
-	bar.Angle = 45
-	highlight := 0 // 30
-	shadow := 0    // 120
+	bar := canvas.NewVerticalGradient(theme.PrimaryColor(), &color.NRGBA{R: uint8(200), G: uint8(0), B: uint8(200), A: uint8(255)}) // or theme.PrimaryColor() and theme.PrimaryColorNamed("purple")
+	bar.Angle = 90
+	highlight := 50 // 30
+	shadow := 100   // 120
 	barHighlight := canvas.NewVerticalGradient(&color.NRGBA{R: uint8(255), G: uint8(255), B: uint8(255), A: uint8(highlight)}, &color.NRGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: uint8(0)})
 	barShadow := canvas.NewVerticalGradient(&color.NRGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: uint8(0)}, &color.NRGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: uint8(shadow)})
 	//bar := canvas.NewRectangle(theme.PrimaryColor())
