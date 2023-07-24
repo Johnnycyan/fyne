@@ -19,6 +19,7 @@ type progressRenderer struct {
 	background             *canvas.Rectangle
 	bar                    *canvas.LinearGradient
 	barHighlight           *canvas.LinearGradient
+	barShadow              *canvas.LinearGradient
 	label                  *canvas.Text
 	progress               *ProgressBar
 	labelBackground        *canvas.Rectangle // new field for the label background
@@ -62,7 +63,9 @@ func (p *progressRenderer) updateBar() {
 
 	size := p.progress.Size()
 	p.bar.Resize(fyne.NewSize(size.Width*ratio, size.Height))
-	p.barHighlight.Resize(fyne.NewSize(size.Width*ratio, size.Height))
+	p.barHighlight.Resize(fyne.NewSize(size.Width*ratio, size.Height/5))
+	p.barShadow.Resize(fyne.NewSize(size.Width*ratio, size.Height/5))
+	p.barShadow.Move(fyne.NewPos(0, size.Height-size.Height/5))
 	p.rightTopCornerImage.Move(fyne.NewPos(p.bar.Size().Width-3, 0))
 	p.rightBottomCornerImage.Move(fyne.NewPos(p.bar.Size().Width-3, size.Height-3))
 }
@@ -83,6 +86,14 @@ func (p *progressRenderer) Layout(size fyne.Size) {
 	p.leftTopCornerImage.Move(fyne.NewPos(0, 0))
 	p.leftBottomCornerImage.Resize(imageSize)
 	p.leftBottomCornerImage.Move(fyne.NewPos(0, size.Height-imageSize.Height))
+
+	if p.progress.Value == 0 {
+		p.rightTopCornerImage.Hide()
+		p.rightBottomCornerImage.Hide()
+	} else {
+		p.rightTopCornerImage.Show()
+		p.rightBottomCornerImage.Show()
+	}
 
 	// Position the right corner image at the top-right corner of the progress bar
 	p.rightTopCornerImage.Resize(imageSize)
@@ -133,6 +144,13 @@ func (p *progressRenderer) applyTheme() {
 		p.rightBottomCornerFix.FillMode = canvas.ImageFillOriginal
 		//p.rightCornerImage.SetMinSize(fyne.NewSize(theme.InputRadiusSize(), p.progress.Size().Height))
 	}
+	if p.progress.Value == 0 {
+		p.rightTopCornerImage.Hide()
+		p.rightBottomCornerImage.Hide()
+	} else {
+		p.rightTopCornerImage.Show()
+		p.rightBottomCornerImage.Show()
+	}
 }
 
 func (p *progressRenderer) Refresh() {
@@ -147,6 +165,13 @@ func (p *progressRenderer) Refresh() {
 	p.rightTopCornerImage.Refresh()
 	p.rightTopCornerFix.Refresh()
 	p.rightBottomCornerFix.Refresh()
+	if p.progress.Value == 0 {
+		p.rightTopCornerImage.Hide()
+		p.rightBottomCornerImage.Hide()
+	} else {
+		p.rightTopCornerImage.Show()
+		p.rightBottomCornerImage.Show()
+	}
 	canvas.Refresh(p.progress.super())
 }
 
@@ -200,7 +225,10 @@ func (p *ProgressBar) CreateRenderer() fyne.WidgetRenderer {
 	background.CornerRadius = theme.InputRadiusSize()
 	bar := canvas.NewVerticalGradient(theme.PrimaryColor(), &color.NRGBA{R: uint8(200), G: uint8(0), B: uint8(200), A: uint8(255)})
 	bar.Angle = 45
-	barHighlight := canvas.NewVerticalGradient(&color.NRGBA{R: uint8(255), G: uint8(255), B: uint8(255), A: uint8(60)}, &color.NRGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: uint8(100)})
+	highlight := 0 // 30
+	shadow := 0    // 120
+	barHighlight := canvas.NewVerticalGradient(&color.NRGBA{R: uint8(255), G: uint8(255), B: uint8(255), A: uint8(highlight)}, &color.NRGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: uint8(0)})
+	barShadow := canvas.NewVerticalGradient(&color.NRGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: uint8(0)}, &color.NRGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: uint8(shadow)})
 	//bar := canvas.NewRectangle(theme.PrimaryColor())
 	//bar.CornerRadius = theme.InputRadiusSize()
 	labelBackground := canvas.NewRectangle(translucentBackgroundColor()) // create the label background
@@ -215,7 +243,7 @@ func (p *ProgressBar) CreateRenderer() fyne.WidgetRenderer {
 	rightTopCornerFix := canvas.NewImageFromFile(`C:\Users\john\Documents\Python Scripts\- go\encoder\corners\CornerRadiusTopRightFix.png`)       // Replace with the file path for your left corner image
 	rightBottomCornerFix := canvas.NewImageFromFile(`C:\Users\john\Documents\Python Scripts\- go\encoder\corners\CornerRadiusBottomRightFix.png`) // Replace with the file path for your right corner image
 
-	return &progressRenderer{widget.NewBaseRenderer([]fyne.CanvasObject{background, bar, barHighlight, labelBackground, label, leftTopCornerImage, leftBottomCornerImage, rightTopCornerImage, rightBottomCornerImage, rightTopCornerFix, rightBottomCornerFix}), background, bar, barHighlight, label, p, labelBackground, leftTopCornerImage, leftBottomCornerImage, rightTopCornerImage, rightBottomCornerImage, rightTopCornerFix, rightBottomCornerFix}
+	return &progressRenderer{widget.NewBaseRenderer([]fyne.CanvasObject{background, bar, barHighlight, barShadow, labelBackground, label, leftTopCornerImage, leftBottomCornerImage, rightTopCornerImage, rightBottomCornerImage, rightTopCornerFix, rightBottomCornerFix}), background, bar, barHighlight, barShadow, label, p, labelBackground, leftTopCornerImage, leftBottomCornerImage, rightTopCornerImage, rightBottomCornerImage, rightTopCornerFix, rightBottomCornerFix}
 }
 
 func translucentBackgroundColor() color.Color {
