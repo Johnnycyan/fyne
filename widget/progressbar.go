@@ -15,9 +15,19 @@ import (
 
 type progressRenderer struct {
 	widget.BaseRenderer
-	background, bar *canvas.Rectangle
-	label           *canvas.Text
-	progress        *ProgressBar
+	//background, bar *canvas.Rectangle
+	background             *canvas.Rectangle
+	bar                    *canvas.LinearGradient
+	barHighlight           *canvas.LinearGradient
+	label                  *canvas.Text
+	progress               *ProgressBar
+	labelBackground        *canvas.Rectangle // new field for the label background
+	leftTopCornerImage     *canvas.Image
+	leftBottomCornerImage  *canvas.Image
+	rightTopCornerImage    *canvas.Image
+	rightBottomCornerImage *canvas.Image
+	rightTopCornerFix      *canvas.Image
+	rightBottomCornerFix   *canvas.Image
 }
 
 // MinSize calculates the minimum size of a progress bar.
@@ -52,23 +62,77 @@ func (p *progressRenderer) updateBar() {
 
 	size := p.progress.Size()
 	p.bar.Resize(fyne.NewSize(size.Width*ratio, size.Height))
+	p.barHighlight.Resize(fyne.NewSize(size.Width*ratio, size.Height))
+	p.rightTopCornerImage.Move(fyne.NewPos(p.bar.Size().Width-3, 0))
+	p.rightBottomCornerImage.Move(fyne.NewPos(p.bar.Size().Width-3, size.Height-3))
 }
 
 // Layout the components of the check widget
 func (p *progressRenderer) Layout(size fyne.Size) {
 	p.background.Resize(size)
+	p.labelBackground.Resize(fyne.NewSize(55, 25)) // resize the label background to be slightly larger
+	// center the label background
+	p.labelBackground.Move(fyne.NewPos((size.Width-p.labelBackground.Size().Width)/2, (size.Height-p.labelBackground.Size().Height)/2))
 	p.label.Resize(size)
 	p.updateBar()
+
+	imageSize := fyne.NewSize(3, 3) // Adjust the size of the left corner image as needed
+
+	// Position the left corner image at the top-left corner of the progress bar
+	p.leftTopCornerImage.Resize(imageSize)
+	p.leftTopCornerImage.Move(fyne.NewPos(0, 0))
+	p.leftBottomCornerImage.Resize(imageSize)
+	p.leftBottomCornerImage.Move(fyne.NewPos(0, size.Height-imageSize.Height))
+
+	// Position the right corner image at the top-right corner of the progress bar
+	p.rightTopCornerImage.Resize(imageSize)
+	p.rightTopCornerImage.Move(fyne.NewPos(p.bar.Size().Width-3, 0))
+	p.rightBottomCornerImage.Resize(imageSize)
+	p.rightBottomCornerImage.Move(fyne.NewPos(p.bar.Size().Width-3, size.Height-imageSize.Height))
+
+	p.rightTopCornerFix.Resize(imageSize)
+	p.rightTopCornerFix.Move(fyne.NewPos(size.Width-3, 0))
+	p.rightBottomCornerFix.Resize(imageSize)
+	p.rightBottomCornerFix.Move(fyne.NewPos(size.Width-3, size.Height-imageSize.Height))
 }
 
 // applyTheme updates the progress bar to match the current theme
 func (p *progressRenderer) applyTheme() {
-	p.background.FillColor = progressBackgroundColor()
+	p.background.FillColor = theme.DisabledButtonColor()
 	p.background.CornerRadius = theme.InputRadiusSize()
-	p.bar.FillColor = theme.PrimaryColor()
-	p.bar.CornerRadius = theme.InputRadiusSize()
-	p.label.Color = theme.BackgroundColor()
+	//p.bar.FillColor = theme.PrimaryColor()
+	//p.bar.CornerRadius = theme.InputRadiusSize()
+	p.labelBackground.FillColor = translucentBackgroundColor() // set the label background color
+	p.labelBackground.CornerRadius = theme.InputRadiusSize()   // set the label background corner radius
+	p.label.Color = theme.ForegroundColor()
 	p.label.TextSize = theme.TextSize()
+	p.label.TextStyle.Bold = true
+	if p.leftTopCornerImage != nil {
+		p.leftTopCornerImage.FillMode = canvas.ImageFillOriginal
+		//p.leftCornerImage.SetMinSize(fyne.NewSize(theme.InputRadiusSize(), p.progress.Size().Height))
+	}
+	if p.leftBottomCornerImage != nil {
+		p.leftBottomCornerImage.FillMode = canvas.ImageFillOriginal
+		//p.leftCornerImage.SetMinSize(fyne.NewSize(theme.InputRadiusSize(), p.progress.Size().Height))
+	}
+
+	if p.rightTopCornerImage != nil {
+		p.rightTopCornerImage.FillMode = canvas.ImageFillOriginal
+		//p.rightCornerImage.SetMinSize(fyne.NewSize(theme.InputRadiusSize(), p.progress.Size().Height))
+	}
+	if p.rightBottomCornerImage != nil {
+		p.rightBottomCornerImage.FillMode = canvas.ImageFillOriginal
+		//p.rightCornerImage.SetMinSize(fyne.NewSize(theme.InputRadiusSize(), p.progress.Size().Height))
+	}
+
+	if p.rightTopCornerFix != nil {
+		p.rightTopCornerFix.FillMode = canvas.ImageFillOriginal
+		//p.rightCornerImage.SetMinSize(fyne.NewSize(theme.InputRadiusSize(), p.progress.Size().Height))
+	}
+	if p.rightBottomCornerFix != nil {
+		p.rightBottomCornerFix.FillMode = canvas.ImageFillOriginal
+		//p.rightCornerImage.SetMinSize(fyne.NewSize(theme.InputRadiusSize(), p.progress.Size().Height))
+	}
 }
 
 func (p *progressRenderer) Refresh() {
@@ -76,6 +140,13 @@ func (p *progressRenderer) Refresh() {
 	p.updateBar()
 	p.background.Refresh()
 	p.bar.Refresh()
+	p.labelBackground.Refresh() // refresh the label background
+	p.leftTopCornerImage.Refresh()
+	p.leftBottomCornerImage.Refresh()
+	p.rightBottomCornerImage.Refresh()
+	p.rightTopCornerImage.Refresh()
+	p.rightTopCornerFix.Refresh()
+	p.rightBottomCornerFix.Refresh()
 	canvas.Refresh(p.progress.super())
 }
 
@@ -123,13 +194,40 @@ func (p *ProgressBar) CreateRenderer() fyne.WidgetRenderer {
 		p.Max = 1.0
 	}
 
-	background := canvas.NewRectangle(progressBackgroundColor())
+	//background := canvas.NewVerticalGradient(progressBackgroundColor(), &color.NRGBA{R: uint8(200), G: uint8(0), B: uint8(200), A: uint8(50)})
+	//background.Angle = 45
+	background := canvas.NewRectangle(theme.DisabledButtonColor())
 	background.CornerRadius = theme.InputRadiusSize()
-	bar := canvas.NewRectangle(theme.PrimaryColor())
-	bar.CornerRadius = theme.InputRadiusSize()
-	label := canvas.NewText("0%", theme.ForegroundColor())
+	bar := canvas.NewVerticalGradient(theme.PrimaryColor(), &color.NRGBA{R: uint8(200), G: uint8(0), B: uint8(200), A: uint8(255)})
+	bar.Angle = 45
+	barHighlight := canvas.NewVerticalGradient(&color.NRGBA{R: uint8(255), G: uint8(255), B: uint8(255), A: uint8(60)}, &color.NRGBA{R: uint8(0), G: uint8(0), B: uint8(0), A: uint8(100)})
+	//bar := canvas.NewRectangle(theme.PrimaryColor())
+	//bar.CornerRadius = theme.InputRadiusSize()
+	labelBackground := canvas.NewRectangle(translucentBackgroundColor()) // create the label background
+	labelBackground.CornerRadius = theme.InputRadiusSize()
+	label := canvas.NewText("0%", theme.BackgroundColor())
 	label.Alignment = fyne.TextAlignCenter
-	return &progressRenderer{widget.NewBaseRenderer([]fyne.CanvasObject{background, bar, label}), background, bar, label, p}
+
+	leftTopCornerImage := canvas.NewImageFromFile(`C:\Users\john\Documents\Python Scripts\- go\encoder\corners\CornerRadiusTopLeft.png`)          // Replace with the file path for your left corner image
+	leftBottomCornerImage := canvas.NewImageFromFile(`C:\Users\john\Documents\Python Scripts\- go\encoder\corners\CornerRadiusBottomLeft.png`)    // Replace with the file path for your right corner image
+	rightTopCornerImage := canvas.NewImageFromFile(`C:\Users\john\Documents\Python Scripts\- go\encoder\corners\CornerRadiusTopRight.png`)        // Replace with the file path for your left corner image
+	rightBottomCornerImage := canvas.NewImageFromFile(`C:\Users\john\Documents\Python Scripts\- go\encoder\corners\CornerRadiusBottomRight.png`)  // Replace with the file path for your right corner image
+	rightTopCornerFix := canvas.NewImageFromFile(`C:\Users\john\Documents\Python Scripts\- go\encoder\corners\CornerRadiusTopRightFix.png`)       // Replace with the file path for your left corner image
+	rightBottomCornerFix := canvas.NewImageFromFile(`C:\Users\john\Documents\Python Scripts\- go\encoder\corners\CornerRadiusBottomRightFix.png`) // Replace with the file path for your right corner image
+
+	return &progressRenderer{widget.NewBaseRenderer([]fyne.CanvasObject{background, bar, barHighlight, labelBackground, label, leftTopCornerImage, leftBottomCornerImage, rightTopCornerImage, rightBottomCornerImage, rightTopCornerFix, rightBottomCornerFix}), background, bar, barHighlight, label, p, labelBackground, leftTopCornerImage, leftBottomCornerImage, rightTopCornerImage, rightBottomCornerImage, rightTopCornerFix, rightBottomCornerFix}
+}
+
+func translucentBackgroundColor() color.Color {
+	r, g, b, a := col.ToNRGBA(theme.DisabledButtonColor())
+	faded := uint8(a) / 3
+	return &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: faded}
+}
+
+func darkenColor() color.Color {
+	r, g, b, a := col.ToNRGBA(theme.PrimaryColor())
+	faded := uint8(a) - 0x80
+	return &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: faded}
 }
 
 // Unbind disconnects any configured data source from this ProgressBar.
@@ -162,7 +260,7 @@ func NewProgressBarWithData(data binding.Float) *ProgressBar {
 
 func progressBackgroundColor() color.Color {
 	r, g, b, a := col.ToNRGBA(theme.PrimaryColor())
-	faded := uint8(a) / 2
+	faded := uint8(a) / 5
 	return &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: faded}
 }
 

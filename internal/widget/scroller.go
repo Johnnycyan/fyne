@@ -1,10 +1,13 @@
 package widget
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/internal/cache"
+	col "fyne.io/fyne/v2/internal/color"
 	"fyne.io/fyne/v2/theme"
 )
 
@@ -49,8 +52,16 @@ func (r *scrollBarRenderer) MinSize() fyne.Size {
 	return r.minSize
 }
 
+func darkenColor() color.Color {
+	r, g, b, a := col.ToNRGBA(theme.ScrollBarColor())
+	r = r - 200
+	g = g - 200
+	b = b - 200
+	return &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: uint8(a)}
+}
+
 func (r *scrollBarRenderer) Refresh() {
-	r.background.FillColor = theme.ScrollBarColor()
+	r.background.FillColor = darkenColor()
 	r.background.Refresh()
 }
 
@@ -67,7 +78,8 @@ type scrollBar struct {
 }
 
 func (b *scrollBar) CreateRenderer() fyne.WidgetRenderer {
-	background := canvas.NewRectangle(theme.ScrollBarColor())
+	background := canvas.NewRectangle(darkenColor())
+	//background.CornerRadius = theme.InputRadiusSize()
 	r := &scrollBarRenderer{
 		scrollBar:  b,
 		background: background,

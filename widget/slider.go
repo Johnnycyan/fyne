@@ -297,8 +297,10 @@ func (s *Slider) MinSize() fyne.Size {
 func (s *Slider) CreateRenderer() fyne.WidgetRenderer {
 	s.ExtendBaseWidget(s)
 	track := canvas.NewRectangle(theme.InputBackgroundColor())
-	active := canvas.NewRectangle(theme.ForegroundColor())
-	thumb := &canvas.Circle{FillColor: theme.ForegroundColor()}
+	active := canvas.NewRectangle(theme.PrimaryColor())
+	//active := canvas.NewVerticalGradient(theme.PrimaryColor(), &color.NRGBA{R: uint8(200), G: uint8(0), B: uint8(200), A: uint8(255)})
+	//active.Angle = 45
+	thumb := &canvas.Circle{FillColor: theme.PrimaryColor()}
 	focusIndicator := &canvas.Circle{FillColor: color.Transparent}
 
 	objects := []fyne.CanvasObject{track, active, thumb, focusIndicator}
@@ -373,8 +375,8 @@ type sliderRenderer struct {
 // Refresh updates the widget state for drawing.
 func (s *sliderRenderer) Refresh() {
 	s.track.FillColor = theme.InputBackgroundColor()
-	s.thumb.FillColor = theme.ForegroundColor()
-	s.active.FillColor = theme.ForegroundColor()
+	s.thumb.FillColor = theme.InputBorderColor()
+	s.active.FillColor = theme.PrimaryColor()
 
 	if s.slider.focused {
 		s.focusIndicator.FillColor = theme.FocusColor()

@@ -202,7 +202,7 @@ func (r *radioItemRenderer) update() {
 	in.ColorName = theme.ColorNameInputBackground
 	if r.item.Selected {
 		in.ColorName = theme.ColorNamePrimary
-		out.ColorName = theme.ColorNameForeground
+		out.ColorName = theme.ColorNameInputBorder
 	}
 	if r.item.Disabled() {
 		if r.item.Selected {
