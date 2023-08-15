@@ -50,6 +50,7 @@ func makeAccordionTab(_ fyne.Window) fyne.CanvasObject {
 			Detail: widget.NewLabel("Three"),
 		},
 	)
+	ac.MultiOpen = true
 	ac.Append(widget.NewAccordionItem("D", &widget.Entry{Text: "Four"}))
 	return ac
 }
@@ -192,6 +193,7 @@ This styled row should also wrap as expected, but only *when required*.
 
 > An interesting quote here, most likely sharing some very interesting wisdom.`)
 	rich.Scroll = container.ScrollBoth
+	rich.Segments[2].(*widget.ImageSegment).Alignment = fyne.TextAlignTrailing
 
 	radioAlign := widget.NewRadioGroup([]string{"Text Alignment Leading", "Text Alignment Center", "Text Alignment Trailing"}, func(s string) {
 		var align fyne.TextAlign

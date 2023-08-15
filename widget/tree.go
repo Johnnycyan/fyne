@@ -1,13 +1,19 @@
 package widget
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/internal/cache"
 	"fyne.io/fyne/v2/internal/widget"
 	"fyne.io/fyne/v2/theme"
 )
+
+// allTreeNodesID represents all tree nodes when refreshing requested nodes
+const allTreeNodesID = "_ALLNODES"
 
 // TreeNodeID represents the unique id of a tree node.
 type TreeNodeID = string
@@ -53,6 +59,30 @@ type Tree struct {
 func NewTree(childUIDs func(TreeNodeID) []TreeNodeID, isBranch func(TreeNodeID) bool, create func(bool) fyne.CanvasObject, update func(TreeNodeID, bool, fyne.CanvasObject)) *Tree {
 	t := &Tree{ChildUIDs: childUIDs, IsBranch: isBranch, CreateNode: create, UpdateNode: update}
 	t.ExtendBaseWidget(t)
+	return t
+}
+
+// NewTreeWithData creates a new tree widget that will display the contents of the provided data.
+//
+// Since: 2.4
+func NewTreeWithData(data binding.DataTree, createItem func(bool) fyne.CanvasObject, updateItem func(binding.DataItem, bool, fyne.CanvasObject)) *Tree {
+	t := NewTree(
+		data.ChildIDs,
+		func(id TreeNodeID) bool {
+			children := data.ChildIDs(id)
+			return len(children) > 0
+		},
+		createItem,
+		func(i TreeNodeID, branch bool, o fyne.CanvasObject) {
+			item, err := data.GetItem(i)
+			if err != nil {
+				fyne.LogError(fmt.Sprintf("Error getting data item %s", i), err)
+				return
+			}
+			updateItem(item, branch, o)
+		})
+
+	data.AddListener(binding.NewDataListener(t.Refresh))
 	return t
 }
 
@@ -144,7 +174,7 @@ func (t *Tree) FocusGained() {
 
 	t.focused = true
 	t.ScrollTo(t.currentFocus)
-	t.Refresh() // TODO RefreshItem(t.currentFocus)
+	t.RefreshItem(t.currentFocus)
 }
 
 // FocusLost is called after this Tree has lost focus.
@@ -159,6 +189,21 @@ func (t *Tree) FocusLost() {
 func (t *Tree) MinSize() fyne.Size {
 	t.ExtendBaseWidget(t)
 	return t.BaseWidget.MinSize()
+}
+
+// RefreshItem refreshes a single item, specified by the item ID passed in.
+//
+// Since: 2.4
+func (t *Tree) RefreshItem(id TreeNodeID) {
+	if t.scroller == nil {
+		return
+	}
+	r := cache.Renderer(t.scroller.Content.(*treeContent))
+	if r == nil {
+		return
+	}
+
+	r.(*treeContentRenderer).refreshForID(id)
 }
 
 // OpenAllBranches opens all branches in the tree.
@@ -289,7 +334,7 @@ func (t *Tree) TypedKey(event *fyne.KeyEvent) {
 	case fyne.KeySpace:
 		t.Select(t.currentFocus)
 	case fyne.KeyDown:
-		// TODO t.RefreshItem(t.currentFocus)
+		t.RefreshItem(t.currentFocus)
 		next := false
 		t.walk(t.Root, "", 0, func(id, p TreeNodeID, _ bool, _ int) {
 			if next {
@@ -301,7 +346,7 @@ func (t *Tree) TypedKey(event *fyne.KeyEvent) {
 		})
 
 		t.ScrollTo(t.currentFocus)
-		t.Refresh() // TODO t.RefreshItem(t.currentFocus)
+		t.RefreshItem(t.currentFocus)
 	case fyne.KeyLeft:
 		t.walk(t.Root, "", 0, func(id, p TreeNodeID, _ bool, _ int) {
 			if id == t.currentFocus && p != "" {
@@ -309,9 +354,9 @@ func (t *Tree) TypedKey(event *fyne.KeyEvent) {
 			}
 		})
 
-		// TODO t.RefreshItem(t.currentFocus)
+		t.RefreshItem(t.currentFocus)
 		t.ScrollTo(t.currentFocus)
-		t.Refresh() // TODO t.RefreshItem(t.currentFocus)
+		t.RefreshItem(t.currentFocus)
 	case fyne.KeyRight:
 		if t.IsBranch(t.currentFocus) {
 			t.OpenBranch(t.currentFocus)
@@ -325,11 +370,11 @@ func (t *Tree) TypedKey(event *fyne.KeyEvent) {
 			t.currentFocus = children[0]
 		}
 
-		// TODO t.RefreshItem(t.currentFocus)
+		t.RefreshItem(t.currentFocus)
 		t.ScrollTo(t.currentFocus)
-		t.Refresh() // TODO t.RefreshItem(t.currentFocus)
+		t.RefreshItem(t.currentFocus)
 	case fyne.KeyUp:
-		// TODO t.RefreshItem(t.currentFocus)
+		t.RefreshItem(t.currentFocus)
 		previous := ""
 		t.walk(t.Root, "", 0, func(id, p TreeNodeID, _ bool, _ int) {
 			if id == t.currentFocus && previous != "" {
@@ -339,7 +384,7 @@ func (t *Tree) TypedKey(event *fyne.KeyEvent) {
 		})
 
 		t.ScrollTo(t.currentFocus)
-		t.Refresh() // TODO t.RefreshItem(t.currentFocus)
+		t.RefreshItem(t.currentFocus)
 	}
 }
 
@@ -719,6 +764,10 @@ func (r *treeContentRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (r *treeContentRenderer) Refresh() {
+	r.refreshForID(allTreeNodesID)
+}
+
+func (r *treeContentRenderer) refreshForID(toDraw TreeNodeID) {
 	s := r.treeContent.Size()
 	if s.IsZero() {
 		r.treeContent.Resize(r.treeContent.MinSize().Max(r.treeContent.tree.Size()))
@@ -726,10 +775,18 @@ func (r *treeContentRenderer) Refresh() {
 		r.Layout(s)
 	}
 	r.treeContent.propertyLock.RLock()
-	for _, b := range r.branches {
+	for id, b := range r.branches {
+		if toDraw != allTreeNodesID && id != toDraw {
+			continue
+		}
+
 		b.Refresh()
 	}
-	for _, l := range r.leaves {
+	for id, l := range r.leaves {
+		if toDraw != allTreeNodesID && id != toDraw {
+			continue
+		}
+
 		l.Refresh()
 	}
 	r.treeContent.propertyLock.RUnlock()
@@ -785,6 +842,7 @@ func (n *treeNode) Content() fyne.CanvasObject {
 
 func (n *treeNode) CreateRenderer() fyne.WidgetRenderer {
 	background := canvas.NewRectangle(theme.HoverColor())
+	background.CornerRadius = theme.SelectionRadiusSize()
 	background.Hide()
 	return &treeNodeRenderer{
 		BaseRenderer: widget.BaseRenderer{},
@@ -814,9 +872,9 @@ func (n *treeNode) MouseOut() {
 }
 
 func (n *treeNode) Tapped(*fyne.PointEvent) {
-	//if n.tree.currentFocus != "" {
-	//	n.tree.RefreshItem(n.tree.currentFocus)
-	//}
+	if n.tree.currentFocus != "" {
+		n.tree.RefreshItem(n.tree.currentFocus)
+	}
 
 	n.tree.Select(n.uid)
 	canvas := fyne.CurrentApp().Driver().CanvasForObject(n.tree)
@@ -824,7 +882,7 @@ func (n *treeNode) Tapped(*fyne.PointEvent) {
 		canvas.Focus(n.tree)
 	}
 	n.tree.currentFocus = n.uid
-	n.tree.Refresh() // TODO n.Refresh()
+	n.Refresh()
 }
 
 func (n *treeNode) partialRefresh() {
@@ -899,6 +957,7 @@ func (r *treeNodeRenderer) partialRefresh() {
 	if r.treeNode.icon != nil {
 		r.treeNode.icon.Refresh()
 	}
+	r.background.CornerRadius = theme.SelectionRadiusSize()
 	if len(r.treeNode.tree.selected) > 0 && r.treeNode.uid == r.treeNode.tree.selected[0] {
 		r.background.FillColor = theme.SelectionColor()
 		r.background.Show()
